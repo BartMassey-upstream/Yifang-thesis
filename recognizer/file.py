@@ -1,6 +1,9 @@
 import numpy as np
 from recognizer.phone import Phone
 
+# BCM: Maybe move file reading and the like into this class?
+
+# BCM: See comment in main.py about name.
 class File():
 
     def __init__(self, path, name) -> None:
@@ -10,6 +13,7 @@ class File():
         self.samplerate = 16000
         self.phn = []
 
+    # BCM: Do you really need this?
     def __str__(self) -> str:
         return f"path = {self.path}, name = {self.name}, wav = {self.wav}, \
             phn = {self.phn}"

@@ -11,11 +11,14 @@ class Phone():
         self.mfcc_seq = None
         self.transcription = transcription
 
+    # BCM: Is this really needed?
     def __str__(self) -> str:
         return f"samplerate = {self.samplerate}, data = {self.data}, \
             transcription = {self.transcription}, mfcc_seq = {self.mfcc_seq}"
 
     def get_mfcc_seq(self):
+        # BCM: Check if the mfcc_seq is not None before computing?
+        # Add an optional argument to force recomputation?
         self.mfcc_seq = mfcc(self.data, self.samplerate)
         return self.mfcc_seq
 

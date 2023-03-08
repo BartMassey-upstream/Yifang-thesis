@@ -1,4 +1,13 @@
+# BCM: Start with a description of this file.
+# "Main program for phone recognizer."
+# Then continue with your name and the year
+# the file was created.
+# "Yifang Zhu 2023"
+# Do this for every source file.
+
 from pathlib import Path
+# BCM: "File" is not a great type name. Something like "PhoneFile"
+# would help differentiate it from Python's "file".
 from recognizer.file import File
 from recognizer.phone import Phone
 import re
@@ -16,6 +25,8 @@ import csv
 import argparse
 from collections.abc import Callable
 
+# BCM: Every block should have a comment describing
+# what it is and does.
 parser = argparse.ArgumentParser(
     prog = 'phonerec',
     description = 'segmented phone recognizer',
@@ -24,6 +35,9 @@ parser.add_argument(
     '-s',
     '--stretch',
     action = "store_true",
+    # BCM: Need to add help fields to all
+    # of these indicating what they are:
+    # "help = 'timestretch the instances to constant length'"
 )
 parser.add_argument(
     '-d',
@@ -36,26 +50,64 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+# BCM: Not good practice to hardcode a personal path in the
+# codebase. Use the environment variable or add a config
+# file or something instead.
 TIMIT = Path("/Users/zhuyifang/Downloads/archive")
 if "TIMIT" in os.environ:
     TIMIT = Path(os.environ["TIMIT"])
 
+# Explain why these phones are ignored.
 IGNORED_PHONES = {"h#", "#h", "sil", "pau", "epi"}
 
+# These names aren't ideal: always be suspicious of
+# names that have 1, 2, 3, … in them. Try this:
+#     PHONE_GROUPS = [
+#         {'axr', 'er'},
+#         {'m', 'em'},
+#         {'n', 'en', 'nx'},
+#         {'ng', 'eng'},
+#     ]
 GROUP_1 = {'axr', 'er'}
 GROUP_2 = {'m', 'em'}
 GROUP_3 = {'n', 'en', 'nx'}
 GROUP_4 = {'ng', 'eng'}
 
 
-# root should be given as the absolute path
-# return files
+# BCM: In general, comments in Python should be complete
+# sentences starting with a capital and ending with a
+# period. See PEP-8 https://peps.python.org/pep-0008/ for a
+# very detailed set of guidelines to follow.  I recommend
+# the Black code formatter
+# https://black.readthedocs.io/en/stable/ for getting code
+# into compliance with PEP-8.
+
+# BCM: I don't know what this comment means.
+# "root should be given as the absolute path"
+# What is the root parameter?
+# BCM: This comment is not useful
+# "return files"
+# The type signature already tells us this.
 def get_all_matched_files(root: str) -> list[File]:
+    # BCM: Make "phn_re" global so that it only gets
+    # compiled once per run.
+    # BCM: The suffix itself should also be global,
+    # since it may be used in multiple places:
+    # "phn_suffix = 'PHN'"
     phn_re = re.compile(r".+\.PHN")
     matched_files = []
     for dirpath, _, filenames in os.walk(root):
         for filename in filenames:
+            # BCM: ".fullmatch()" is needed here to not match
+            # things like "foo.PHNXXX".
             if phn_re.match(filename):
+                # BCM: The "-4" here is quite dangerous,
+                # since the suffix may change. Use
+                # regex submatches as well:
+                #     phn_re = re.compile(rf"(.+)\.{phn_suffix}")
+                #     matches = phn_re.fullmatch(filename)
+                #     if matches:
+                #         filename = matches.group(1)
                 filename = filename[:-4]
                 file = File(dirpath, filename)
                 matched_files.append(file)
@@ -65,8 +117,15 @@ def get_all_matched_files(root: str) -> list[File]:
 # read .wav and .PHN
 def read_files(files: list[File]) -> list[File]:
     for file in files:
+        # BCM: Suggest using pathlib's Path rather than
+        # os.path: it works better and does more stuff.
+        # Here, for example you could write "file.path / file.name".
+        # But really making a path should be a File method, not here.
         filepath = os.path.join(file.path, file.name)
-        # read .PHN
+        # BCM: These comments don't add anything. It is obvious that
+        # a PHN is being read here. Also, again use a global for the
+        # extension, or make it part of File.
+        # "read .PHN"
         with open(filepath + ".PHN") as f:
             file.phn = f.readlines()
         # read .wav
@@ -75,6 +134,8 @@ def read_files(files: list[File]) -> list[File]:
     return files
 
 
+# BCM: Does "TIMIT_path" need to be a parameter? Maybe better to
+# use the global? Also, capitalization is a bit rough: "timit_path" is fine.
 # read all the files in the training set and make them into Phone objects
 def get_phones_from_TIMIT(TIMIT_path: Path, set_name: str) -> list[Phone]:
     set_path = TIMIT_path / f"data/{set_name}"
@@ -102,6 +163,9 @@ def read_phones_from_pkl(filename: str) -> list[Phone]:
     return phones
 
 
+# BCM: This function is a miss. That's my fault. This thing
+# should be rewritten from scratch to do what it is supposed
+# to do.
 def get_phones(namer: Callable[[str], str], do_pkl=None) -> tuple[list[Phone], list[Phone], bool]:
     assert do_pkl is not None, "get_phones: pkl required"
     pkls = (
@@ -130,13 +194,17 @@ def get_phones(namer: Callable[[str], str], do_pkl=None) -> tuple[list[Phone], l
             pkled = True
     return (*tt_phones, pkled)
 
+# BCM: Needs description.
 def drop_ignored_phones(phones: list[Phone]) -> list[Phone]:
     return list(
         filter(lambda phone: phone.transcription not in IGNORED_PHONES,
                phones))
 
 
+# BCM: Needs description.
 def group_phones(phones: list[Phone]) -> dict[str, list[Phone]]:
+    # BCM: Rather than hand-listing this dictionary, should
+    # derive it from the phones and phone_groups.
     res = {
         'ix': [],
         'iy': [],
@@ -194,6 +262,8 @@ def group_phones(phones: list[Phone]) -> dict[str, list[Phone]]:
     }
 
     for phone in phones:
+        # BCM: Building PHONE_GROUPS earlier pays off here, as this
+        # copy-paste can be replaced with a for loop.
         # fold the 4 groups
         if phone.transcription in GROUP_1:
             phone.transcription = 'axr/er'
@@ -214,6 +284,8 @@ def group_phones(phones: list[Phone]) -> dict[str, list[Phone]]:
 
 def get_n_from_each_group(phone_groups: dict[str, list[Phone]],
                           n: int) -> list[Phone]:
+    # BCM: An "advanced" Python trick is to use a "list constructor" here.
+    #     return [random.sample(group, n) for group in phone_groups.values()]
     res = []
     for group in phone_groups.values():
         res += random.sample(group, n)
@@ -223,12 +295,17 @@ def get_n_from_each_group(phone_groups: dict[str, list[Phone]],
 def predict_phone(train_set_phones: list[Phone], test_phone: Phone) -> str:
 
     # using KNN to find the nearest neighbor
+    # BCM: k should be specified by a command-line argument, and be defaulted
+    # to 10.
     k = 10
     # using a heap to keep track of the samllest k element
     # the items in the heap are tuples like (negative distance to the test_set_phone, train_set_phone transcription)
+    # BCM: this needs more elaboration. Is heapq a min-heap or a max-heap?
+    # How does the keeping track actually work? Pseudocode would be welcome here.
     heap = []
     heapq.heapify(heap)
 
+    # BCM: Move this to the top of the function.
     if args.distance == "dtw":
         metric_distance = lambda p1, p2: p1.dtw_distance_to(p2)
     elif args.distance == "euclid":
@@ -236,6 +313,8 @@ def predict_phone(train_set_phones: list[Phone], test_phone: Phone) -> str:
     else:
         assert False, f"unknown distance metric: {args.distance}"
 
+    # BCM: Using two variables that differ only by singular/plural
+    # is considered bad style, as it can lead to easy errors.
     for train_set_phone in train_set_phones:
         distance = metric_distance(test_phone, train_set_phone)
         if len(heap) < k:
@@ -256,6 +335,8 @@ def predict_phone(train_set_phones: list[Phone], test_phone: Phone) -> str:
     return predicted_phone
 
 
+# BCM: Bad function name, since nothing is being tested
+# here. Perhaps "trial"?
 def test(train_set_phones: list[Phone], test_phones: list[Phone]):
     with open('test_result.csv', 'w') as f:
         writer = csv.writer(f)
@@ -308,11 +389,14 @@ if __name__ == "__main__":
         save_phones_to_pkl(train_set_phones, namer("train"))
         save_phones_to_pkl(test_set_phones, namer("test"))
 
+    # BCM: Should we be using a random sample or a random
+    # sample of instances from each phone?
     test_set = random.sample(test_set_phones, 1000)
     if args.stretch:
         stretch_phones(test_set)
     test(train_set_phones, test_set)
     # confusion matrix test
+    # BCM: These labels are obtainable from the dictionary used in group_phones().
     labels = [
         'ix', 'iy', 's', 'r', 'n/en/nx', 'l', 'tcl', 'kcl', 'ih', 'dcl', 'k',
         't', 'm/em', 'eh', 'ae', 'axr/er', 'ax', 'z', 'd', 'q', 'w', 'ao',
